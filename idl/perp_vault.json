@@ -899,6 +899,87 @@
       ]
     },
     {
+      "name": "set_operator_sink",
+      "discriminator": [
+        159,
+        83,
+        183,
+        53,
+        114,
+        208,
+        161,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "vault_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "operator_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  112,
+                  101,
+                  114,
+                  97,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vault_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "operator",
+          "type": "pubkey"
+        },
+        {
+          "name": "allowed_sink",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "transfer_ownership",
       "discriminator": [
         65,
@@ -1397,6 +1478,11 @@
       "code": 6016,
       "name": "SameAccount",
       "msg": "from and to balance accounts must differ"
+    },
+    {
+      "code": 6017,
+      "name": "OperatorNotParty",
+      "msg": "Operator must be a party to the transfer, or the destination must be its registered sink"
     }
   ],
   "types": [
@@ -1571,6 +1657,10 @@
           {
             "name": "authorized",
             "type": "bool"
+          },
+          {
+            "name": "allowed_sink",
+            "type": "pubkey"
           }
         ]
       }

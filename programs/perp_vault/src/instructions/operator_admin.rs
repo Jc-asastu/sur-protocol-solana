@@ -35,6 +35,10 @@ pub struct SetOperator<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// Registering an operator grants NO sink — the operator may then only move funds
+/// where it is itself one of the two parties. A fee-routing operator additionally
+/// needs `set_operator_sink`. Signature deliberately unchanged by the HIGH-1 fix so
+/// that every existing caller keeps working and no flow silently gains privilege.
 pub(crate) fn set_operator(
     ctx: Context<SetOperator>,
     operator: Pubkey,
@@ -50,5 +54,55 @@ pub(crate) fn set_operator(
     op_acc.authorized = status;
 
     emit!(OperatorUpdated { operator, status });
+    Ok(())
+}
+
+// ============================================================
+//                    SET OPERATOR SINK  (HIGH-1 scoping)
+// ============================================================
+// Owner-only. Grants a fee-routing operator the right to move funds into ONE
+// specific destination while being neither party — the only legitimate shape that
+// the "operator must be a party" invariant would otherwise reject (a2a_darkpool
+// and order_settlement moving trader -> fee_recipient).
+//
+// The operator must already be registered: this instruction never creates the PDA,
+// so a sink can never be granted to an unregistered key by mistake.
+
+#[derive(Accounts)]
+#[instruction(operator: Pubkey, allowed_sink: Pubkey)]
+pub struct SetOperatorSink<'info> {
+    #[account(
+        seeds = [VaultConfig::SEED],
+        bump = vault_config.bump,
+        has_one = owner @ VaultError::NotOwner,
+    )]
+    pub vault_config: Account<'info, VaultConfig>,
+
+    #[account(
+        mut,
+        seeds = [Operator::SEED_PREFIX, operator.as_ref()],
+        bump = operator_account.bump,
+        constraint = operator_account.operator == operator @ VaultError::NotOperator,
+    )]
+    pub operator_account: Account<'info, Operator>,
+
+    pub owner: Signer<'info>,
+}
+
+pub(crate) fn set_operator_sink(
+    ctx: Context<SetOperatorSink>,
+    operator: Pubkey,
+    allowed_sink: Pubkey,
+) -> Result<()> {
+    require!(operator != Pubkey::default(), VaultError::ZeroAddress);
+
+    // Not write-once: a live privilege must stay revocable (pass the default pubkey)
+    // without having to close and re-create the operator PDA.
+    ctx.accounts.operator_account.allowed_sink = allowed_sink;
+
+    emit!(OperatorUpdated {
+        operator,
+        status: ctx.accounts.operator_account.authorized,
+    });
     Ok(())
 }

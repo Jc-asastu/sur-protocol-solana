@@ -103,7 +103,13 @@ pub struct AcceptAndSettle<'info> {
     pub darkpool_authority: UncheckedAccount<'info>,
 
     // ========== perp_engine accounts (validated at engine CPI entry) ==========
-    /// CHECK: perp_engine program id.
+    /// CHECK: perp_engine program id. MUST be bound to `config.perp_engine`.
+    /// `accept_and_settle` is reachable by any agent that posted an intent, and it
+    /// forwards `darkpool_authority` as a CPI *signer* — a PDA registered as an
+    /// operator on BOTH perp_engine and perp_vault. Signer privilege extends
+    /// transitively through CPI, so an unbound program id here is a permissionless
+    /// drain primitive. See docs/audit/2026-07-26-unaudited-programs-findings.md (D-1a).
+    #[account(constraint = perp_engine_program.key() == config.perp_engine @ DarkPoolError::InvalidAccount)]
     pub perp_engine_program: UncheckedAccount<'info>,
     /// CHECK: engine_config PDA.
     pub engine_config: UncheckedAccount<'info>,
@@ -133,7 +139,9 @@ pub struct AcceptAndSettle<'info> {
     pub engine_pool_balance: UncheckedAccount<'info>,
 
     // ========== perp_vault accounts (validated at vault CPI entry) ==========
-    /// CHECK: perp_vault program id.
+    /// CHECK: perp_vault program id. MUST be bound to `config.perp_vault` — see the
+    /// note on `perp_engine_program` above (D-1a).
+    #[account(constraint = perp_vault_program.key() == config.perp_vault @ DarkPoolError::InvalidAccount)]
     pub perp_vault_program: UncheckedAccount<'info>,
     /// CHECK: vault_config PDA.
     pub vault_config: UncheckedAccount<'info>,
@@ -251,6 +259,31 @@ pub(crate) fn handler(ctx: Context<AcceptAndSettle>) -> Result<()> {
             Pubkey::find_program_address(&[b"market", market_id.as_ref()], &config.perp_engine);
         require!(
             ctx.accounts.engine_market.key() == exp_market,
+            DarkPoolError::InvalidAccount
+        );
+
+        // ---- D-1b (2026-07-26 audit) ----
+        // The engine-side accounts below were forwarded into the settlement CPIs
+        // *unvalidated*, and `engine_pool_balance` is passed WRITABLE. An unbound
+        // writable balance is an attacker-chosen victim account handed to the callee
+        // alongside a `darkpool_authority` signature — a permissionless drain even
+        // once the program ids are bound. Bind all three to their canonical PDAs.
+        let (exp_engine_auth, _) =
+            Pubkey::find_program_address(&[b"engine_authority"], &config.perp_engine);
+        require!(
+            ctx.accounts.engine_authority.key() == exp_engine_auth,
+            DarkPoolError::InvalidAccount
+        );
+        let (exp_pool, _) =
+            Pubkey::find_program_address(&[b"balance", exp_engine_auth.as_ref()], &pv);
+        require!(
+            ctx.accounts.engine_pool_balance.key() == exp_pool,
+            DarkPoolError::InvalidAccount
+        );
+        let (exp_engine_vault_op, _) =
+            Pubkey::find_program_address(&[b"operator", exp_engine_auth.as_ref()], &pv);
+        require!(
+            ctx.accounts.engine_vault_operator.key() == exp_engine_vault_op,
             DarkPoolError::InvalidAccount
         );
     }

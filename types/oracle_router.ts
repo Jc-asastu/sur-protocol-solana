@@ -906,6 +906,11 @@ export type OracleRouter = {
       "code": 6013,
       "name": "futureTimestamp",
       "msg": "Future timestamp not allowed"
+    },
+    {
+      "code": 6014,
+      "name": "invalidProgram",
+      "msg": "CPI target program is not the perp_engine"
     }
   ],
   "types": [

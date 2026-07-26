@@ -690,6 +690,40 @@ async function main() {
     }
   }
 
+  // vault operator sinks (HIGH-1 scoping, 2026-07-26 audit)
+  //
+  // `set_operator` alone now only lets an operator move funds where it is itself
+  // one of the two parties. That covers every settlement flow — the engine locks
+  // margin INTO engine_pool and pays out FROM it, the insurance fund pays FROM its
+  // own balance, a trading vault moves against its own balance.
+  //
+  // The one legitimate exception is a protocol fee leg: a2a_darkpool and
+  // order_settlement move `trader -> fee_recipient` with their authority on neither
+  // side. Those two — and ONLY those two — get a sink. Both were initialized with
+  // `feeRecipient: deployer.publicKey` above (:478, :644); keep these in sync if
+  // that ever changes, or the fee legs will start failing with OperatorNotParty.
+  const vaultOperatorSinks: Array<[string, PublicKey, PublicKey]> = [
+    ["a2a_darkpool_authority", a2aAuthorityPda, deployer.publicKey],
+    ["order_settlement_authority", osAuthorityPda, deployer.publicKey],
+  ];
+  for (const [label, op, sink] of vaultOperatorSinks) {
+    try {
+      const sig = await programs.perp_vault.methods
+        .setOperatorSink(op, sink)
+        .accountsPartial({
+          vaultConfig: vaultConfigPda,
+          operatorAccount: vaultOperatorPda(op),
+          owner: deployer.publicKey,
+        })
+        .rpc(CONFIRM_OPTS);
+      ok(`vault.set_operator_sink(${label})`, sig);
+      state.steps[`vault.set_operator_sink.${label}`] = "ok";
+    } catch (e) {
+      fail(`vault.set_operator_sink(${label})`, e);
+      state.steps[`vault.set_operator_sink.${label}`] = "failed";
+    }
+  }
+
   // engine operators
   const engineOperators: Array<[string, PublicKey]> = [
     ["liquidator_authority", liquidatorAuthorityPda],

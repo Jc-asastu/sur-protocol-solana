@@ -43,4 +43,7 @@ pub enum OracleError {
 
     #[msg("Future timestamp not allowed")]
     FutureTimestamp,
+
+    #[msg("CPI target program is not the perp_engine")]
+    InvalidProgram,
 }

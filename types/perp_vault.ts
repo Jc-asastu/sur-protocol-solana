@@ -905,6 +905,87 @@ export type PerpVault = {
       ]
     },
     {
+      "name": "setOperatorSink",
+      "discriminator": [
+        159,
+        83,
+        183,
+        53,
+        114,
+        208,
+        161,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "vaultConfig",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "operatorAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  112,
+                  101,
+                  114,
+                  97,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vaultConfig"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "operator",
+          "type": "pubkey"
+        },
+        {
+          "name": "allowedSink",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "transferOwnership",
       "discriminator": [
         65,
@@ -1403,6 +1484,11 @@ export type PerpVault = {
       "code": 6016,
       "name": "sameAccount",
       "msg": "from and to balance accounts must differ"
+    },
+    {
+      "code": 6017,
+      "name": "operatorNotParty",
+      "msg": "Operator must be a party to the transfer, or the destination must be its registered sink"
     }
   ],
   "types": [
@@ -1577,6 +1663,10 @@ export type PerpVault = {
           {
             "name": "authorized",
             "type": "bool"
+          },
+          {
+            "name": "allowedSink",
+            "type": "pubkey"
           }
         ]
       }

@@ -52,4 +52,8 @@ pub enum VaultError {
 
     #[msg("from and to balance accounts must differ")]
     SameAccount,
+
+    // Appended, never inserted — Anchor derives error codes from variant order.
+    #[msg("Operator must be a party to the transfer, or the destination must be its registered sink")]
+    OperatorNotParty,
 }

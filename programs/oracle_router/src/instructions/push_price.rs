@@ -52,7 +52,14 @@ pub struct PushPrice<'info> {
     pub oracle_authority: UncheckedAccount<'info>,
 
     // -------- perp_engine CPI accounts --------
-    /// CHECK: perp_engine program. Validated by CPI runtime.
+    /// CHECK: perp_engine program id, pinned to `perp_engine::ID` at compile time.
+    /// The runtime does NOT validate this for us, and neither does Anchor's typed
+    /// `cpi::` helper — it builds the instruction with `program_id: ctx.program.key()`
+    /// and never compares it to the callee's `declare_id!`. Left unbound, this hands
+    /// `oracle_authority` — a registered perp_engine operator — as a CPI signer to an
+    /// arbitrary program, and signer privilege extends transitively through CPI.
+    /// See docs/audit/2026-07-26-unaudited-programs-findings.md (H-1).
+    #[account(address = perp_engine::ID @ OracleError::InvalidProgram)]
     pub perp_engine_program: UncheckedAccount<'info>,
 
     /// CHECK: engine config PDA. perp_engine validates ownership at CPI entry.

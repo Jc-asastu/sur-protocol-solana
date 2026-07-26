@@ -88,11 +88,28 @@ pub struct Operator {
     pub bump: u8,
     pub operator: Pubkey,
     pub authorized: bool,
+
+    /// HIGH-1 scoping (2026-07-21 audit, fixed 2026-07-26).
+    ///
+    /// `authorized` alone made every operator a full-vault drain primitive: it
+    /// gated *whether* you may move funds, never *whose*. `internal_transfer` now
+    /// additionally requires that the operator be one of the two parties, or that
+    /// the destination be this registered sink.
+    ///
+    /// Every settlement flow in the protocol already has the calling authority on
+    /// one side (the engine locks margin INTO `engine_pool`, pays out FROM it; the
+    /// insurance fund pays FROM its own balance). The exception is a protocol fee
+    /// leg — `a2a_darkpool` and `order_settlement` move `trader -> fee_recipient`
+    /// with the authority on neither side — which is exactly what this sink permits,
+    /// and nothing more.
+    ///
+    /// `Pubkey::default()` = no sink; the operator must be a party.
+    pub allowed_sink: Pubkey,
 }
 
 impl Operator {
     pub const SEED_PREFIX: &'static [u8] = b"operator";
 
-    // 8 (disc) + 1 + 32 + 1
-    pub const SIZE: usize = 8 + 1 + 32 + 1;
+    // 8 (disc) + 1 + 32 + 1 + 32 (allowed_sink)
+    pub const SIZE: usize = 8 + 1 + 32 + 1 + 32;
 }

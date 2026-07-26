@@ -68,6 +68,31 @@ pub(crate) fn handler(ctx: Context<InternalTransfer>, amount: u64) -> Result<()>
         VaultError::SameAccount
     );
 
+    // HIGH-1 fix (2026-07-21 audit, closed 2026-07-26): scope the mover.
+    //
+    // `operator_account.authorized` gates *whether* a key may move funds, never
+    // *whose* funds. That made any single operator key — or any program able to
+    // borrow one operator's signature — able to move value between two arbitrary
+    // third parties, i.e. a full-vault drain primitive. It is the amplifier that
+    // turned three separate unbound-CPI bugs into fund loss rather than nuisance
+    // (see docs/audit/2026-07-26-unaudited-programs-findings.md §3b).
+    //
+    // Invariant: an operator-initiated transfer must have the operator on one side,
+    // or be a fee leg into that operator's registered sink. An attacker choosing
+    // BOTH sides satisfies neither.
+    {
+        let op = ctx.accounts.operator.key();
+        let sink = ctx.accounts.operator_account.allowed_sink;
+        let from_trader = ctx.accounts.from_balance.trader;
+        let to_trader = ctx.accounts.to_balance.trader;
+        require!(
+            from_trader == op
+                || to_trader == op
+                || (sink != Pubkey::default() && to_trader == sink),
+            VaultError::OperatorNotParty
+        );
+    }
+
     let from = &mut ctx.accounts.from_balance;
     let to = &mut ctx.accounts.to_balance;
     require!(

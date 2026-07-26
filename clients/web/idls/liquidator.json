@@ -538,6 +538,11 @@
       "code": 6004,
       "name": "MathOverflow",
       "msg": "Math overflow"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidProgram",
+      "msg": "CPI target program does not match the configured perp_engine"
     }
   ],
   "types": [

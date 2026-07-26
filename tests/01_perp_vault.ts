@@ -216,10 +216,57 @@ describe("perp_vault", () => {
       .rpc();
   });
 
+  // HIGH-1 (2026-07-21 audit, fixed 2026-07-26). This block previously asserted,
+  // as correct behaviour, that a bare authorized operator could move funds between
+  // two unrelated third parties — which is precisely the full-vault drain primitive.
+  // It is now split: the unscoped move must revert, and the same move is only
+  // permitted once the owner explicitly grants the operator a sink.
+  it("rejects an operator moving funds between two third parties (HIGH-1)", async () => {
+    let threw = false;
+    try {
+      await program.methods
+        .internalTransfer(new anchor.BN(10_000_000))
+        .accountsPartial({
+          vaultConfig: vaultConfigPda,
+          operatorAccount: operatorPda,
+          fromBalance: balancePda(trader1.publicKey),
+          toBalance: balancePda(trader2.publicKey),
+          operator: operatorKp.publicKey,
+        })
+        .signers([operatorKp])
+        .rpc();
+    } catch (e: any) {
+      threw = true;
+      assert.include(
+        (e?.error?.errorCode?.code ?? e.toString()).toLowerCase(),
+        "operatornotparty",
+      );
+    }
+    assert.isTrue(
+      threw,
+      "SECURITY REGRESSION: an authorized operator moved funds between two third " +
+        "parties — this is the full-vault drain primitive (HIGH-1)",
+    );
+  });
+
+  it("owner grants the operator an explicit sink", async () => {
+    await program.methods
+      .setOperatorSink(operatorKp.publicKey, trader2.publicKey)
+      .accountsPartial({
+        vaultConfig: vaultConfigPda,
+        operatorAccount: operatorPda,
+        owner: owner.publicKey,
+      })
+      .rpc();
+
+    const op = await program.account.operator.fetch(operatorPda);
+    assert.equal(op.allowedSink.toBase58(), trader2.publicKey.toBase58());
+  });
+
   it("operator does internalTransfer of 10 USDC trader1 -> trader2", async () => {
     await program.methods
       .internalTransfer(new anchor.BN(10_000_000))
-      .accounts({
+      .accountsPartial({
         vaultConfig: vaultConfigPda,
         operatorAccount: operatorPda,
         fromBalance: balancePda(trader1.publicKey),

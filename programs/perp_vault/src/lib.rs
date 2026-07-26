@@ -68,6 +68,17 @@ pub mod perp_vault {
         instructions::operator_admin::set_operator(ctx, operator, status)
     }
 
+    /// Grant/revoke an operator's fee-routing sink (HIGH-1 scoping).
+    /// Separate from `set_operator` so that granting this privilege is always an
+    /// explicit, auditable act rather than a defaulted argument.
+    pub fn set_operator_sink(
+        ctx: Context<SetOperatorSink>,
+        operator: Pubkey,
+        allowed_sink: Pubkey,
+    ) -> Result<()> {
+        instructions::operator_admin::set_operator_sink(ctx, operator, allowed_sink)
+    }
+
     pub fn pause(ctx: Context<AdminUpdate>) -> Result<()> {
         instructions::admin::pause(ctx)
     }

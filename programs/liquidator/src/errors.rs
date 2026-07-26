@@ -16,4 +16,9 @@ pub enum LiquidatorError {
 
     #[msg("Math overflow")]
     MathOverflow,
+
+    // NOTE: appended, never inserted — Anchor derives error codes from variant
+    // order (6000 + index), so inserting above would renumber existing errors.
+    #[msg("CPI target program does not match the configured perp_engine")]
+    InvalidProgram,
 }

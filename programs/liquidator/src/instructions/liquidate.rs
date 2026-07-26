@@ -70,7 +70,15 @@ pub struct Liquidate<'info> {
     pub keeper: Signer<'info>,
 
     // ---- engine accounts (validated at engine CPI entry) ----
-    /// CHECK: perp_engine program id.
+    /// CHECK: perp_engine program id. MUST be bound to `config.perp_engine`:
+    /// `liquidate` is permissionless and forwards `liquidator_authority` as a
+    /// CPI *signer*, and that PDA is a registered perp_engine operator. Signer
+    /// privilege extends transitively through CPI, so an unbound program id
+    /// would let any caller hand the engine operator role to a program of their
+    /// choosing. See docs/audit/2026-07-26-unaudited-programs-findings.md (C-1).
+    #[account(
+        constraint = perp_engine_program.key() == config.perp_engine @ LiquidatorError::InvalidProgram
+    )]
     pub perp_engine_program: UncheckedAccount<'info>,
     /// CHECK: engine_config PDA.
     pub engine_config: UncheckedAccount<'info>,

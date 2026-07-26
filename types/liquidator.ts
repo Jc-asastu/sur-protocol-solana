@@ -544,6 +544,11 @@ export type Liquidator = {
       "code": 6004,
       "name": "mathOverflow",
       "msg": "Math overflow"
+    },
+    {
+      "code": 6005,
+      "name": "invalidProgram",
+      "msg": "CPI target program does not match the configured perp_engine"
     }
   ],
   "types": [
