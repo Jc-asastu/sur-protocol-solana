@@ -372,6 +372,91 @@ is now resynchronised to the canonical IDL.
 
 ---
 
+## 3c. Second pass — sweep completed, two further findings
+
+### The defect class is now fully swept
+
+Every CPI target program id in the repo was checked against its `config` counterpart. The three
+instances in §1/§2/§3b were the only ones:
+
+| Program | Binds the callee program id? |
+|---|---|
+| `order_settlement` | ✅ `settle.rs:71`, `:104` |
+| `collateral_manager` | ✅ `deposit.rs:67`, `withdraw.rs:70` |
+| `insurance_fund` | ✅ `reward.rs:53` |
+| `auto_deleveraging` | ✅ `execute_adl.rs:68` |
+| `trading_vault` | ✅ its own ids; the `perp_vault_program` it forwards at `manager_trade.rs:68` is unbound **but validated by the callee** — see below |
+| `perp_engine` | ✅ all five vault-CPI paths: `open_position.rs:192`, `close_position.rs:132`/`:172`, `liquidate_position.rs:182`/`:238`, `reduce_position.rs:220` |
+
+**Rejected suspicion.** `trading_vault/manager_trade.rs:68` forwards `perp_vault_program` with no
+constraint, which looks like the same bug one hop deeper. It is not exploitable: `perp_engine`
+re-derives and enforces `vault_program.key() == cfg.perp_vault` in every path that consumes it,
+alongside Gate 0a and `assert_engine_authority`. Recorded so the next reviewer does not re-chase it.
+
+### [HIGH] E-1 — `liquidate_position` binds the insurance-fund destination only *conditionally*
+
+**Location:** `perp_engine/src/instructions/liquidate_position.rs:244-249`
+
+```rust
+if cfg.insurance_fund_balance != Pubkey::default() {
+    require!(insurance_fund_balance.key() == cfg.insurance_fund_balance, ...);
+}
+```
+
+The neighbouring `engine_pool` binding (`:242-243`) is unconditional — it *requires* the config
+value to be set. The insurance-fund binding is not: when `cfg.insurance_fund_balance` is unset, the
+caller-supplied `remaining_accounts[6]` is accepted without any check and receives `insurance_payout`.
+
+**Why it is reachable by anyone.** `liquidate_position` is engine-operator-gated, but
+`liquidator_authority` is a registered engine operator and `liquidator::liquidate` is
+**permissionless** — and it forwards `ctx.remaining_accounts` through unchanged
+(`liquidator/cpi_util.rs:75-82`). So an arbitrary caller controls slot 6 and can redirect the
+insurance-fund share of every liquidation to an account they own.
+
+Note this is **not** stopped by the §6 vault fix: the transfer is `engine_pool -> chosen account`
+signed by `engine_authority`, which *is* a party, so the vault correctly permits it. The vault
+cannot know the destination is wrong; only the engine can.
+
+**Confirms** finding #4 of the 2026-07-24 Codex pass, which was recorded as UNVERIFIED. Verified
+here at the code level, and the deployment does leave the field unset (below).
+
+**Fix:** make the binding unconditional, matching `engine_pool` two lines above:
+
+```rust
+require!(cfg.insurance_fund_balance != Pubkey::default(), EngineError::InvalidParam);
+require!(insurance_fund_balance.key() == cfg.insurance_fund_balance, EngineError::InvalidParam);
+```
+
+`set_insurance_fund_balance` (`admin.rs:95`) already exists to populate it; it simply has to become
+a required part of deployment. **Not fixed** — it changes a liveness precondition on an already
+mis-configured deployment (below), so it should land together with the redeploy.
+
+### [INFO/liveness] E-2 — the deployed devnet is running stale code and cannot trade
+
+Read directly from devnet (`engine_config` = `BwYqKbTBmLKHt46Cvdm47c8hmX2iu4H2qRnkNf81ZnqQ`):
+
+```
+perp_vault             = HDS6P815i9ZTCriGVMxvvTAY5bkToTSf8XGfPKjSpCxQ
+engine_pool            = 11111111111111111111111111111111   <-- Pubkey::default()
+insurance_fund_balance = 11111111111111111111111111111111   <-- Pubkey::default()
+```
+
+`bootstrap_pool.rs:138` *does* set `engine_pool`, and `scripts/devnet-state.json:49` records
+`perp_engine.bootstrap_engine_pool: ok` — yet the on-chain value is still default. The deployed
+binary therefore **predates the Gate 0a fix that added that write**.
+
+Consequence: `open_position.rs:196` and `liquidate_position.rs:242` both hard-require
+`cfg.engine_pool != Pubkey::default()`, so **every trade path that forwards vault accounts currently
+reverts with `InvalidParam` on devnet.** The margin-lock path is dead. This fails *safe* — it is a
+liveness/config defect, not a vulnerability — but it means the live devnet does not exercise the
+code in this repo, and no on-chain behaviour should be inferred from it until it is redeployed.
+
+It also means E-1 is presently masked on devnet (the `engine_pool` require fires first), and would
+become live the moment `engine_pool` is set without also setting `insurance_fund_balance` — two
+independent setters, so that is an easy state to land in.
+
+---
+
 ## 4. Checked and clean (in this pass)
 
 - `insurance_fund` — `reward.rs` binds the vault program id, applies per-call + 24h rolling caps
