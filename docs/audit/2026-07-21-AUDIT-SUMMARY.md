@@ -188,80 +188,11 @@ either posture.
 
 ---
 
-## 4. Bounty package (DRAFT)
+## 4. Bounty package (CANCELLED)
 
-> **Status: DRAFT — not published.** Self-funded, small (~200 USDT total pool). Framed
-> conservatively: this is a solo/indie protocol invitation to a handful of known Percolator-tier
-> devs, **not** an Immunefi-scale program. Severities below are deliberately *not* inflated; the
-> internal audit above already found the headline bugs, so this bounty targets what the audit and
-> the fixes might have **missed or reintroduced**, plus anything net-new.
-
-### 4.1 Framing (conservative)
-
-- The protocol has just completed an internal repo-wide review (this document). Known findings are
-  **out of scope** for reward — they are listed as *acknowledged* so nobody re-reports them.
-- The realistic ceiling for a *new* finding is **High / Medium + a PR**, not a fresh drain — the
-  juicy direct-drain classes (fee-leg substitution, signature/nonce replay, self-trade, cross-mint
-  escrow, arbitrary CPI into an attacker program) were verified **closed**. Set expectations
-  accordingly so the pool is not misread as implying an unpatched jackpot.
-- Reward is for **verified, reproducible** findings against the **audited commit** (pin the exact
-  commit hash), on **devnet / local validator only**. No mainnet interaction is in scope.
-
-### 4.2 Tiered structure (~200 USDT pool)
-
-| Tier | Severity | Guide reward | What qualifies |
-|------|----------|--------------|----------------|
-| T1 | Critical | 100 USDT | New, operator-*independent* direct loss/mint of user principal (e.g. a trading_vault-CRITICAL-1-class equity/share forgery we missed) with a working devnet PoC. |
-| T2 | High | 60 USDT | New stranded-funds / drain-primitive / denial-of-withdrawal reachable under the **chosen** trust posture (section 3), with PoC. |
-| T3 | Medium | 30 USDT | New accounting-divergence, fee-integrity, layout-coupling, or safety-control-bypass issue with a concrete failure scenario. |
-| T4 | Low / hardening | 10 USDT | Valid defense-in-depth gap (unbound account, missing dedup, rounding, rent-grief) with a suggested fix / PR. |
-
-- Total is a *soft cap*: if two T1s land, the pool tops up rather than the second going unpaid — but
-  the expectation (set publicly) is that T3/T4 is the realistic landing zone.
-- **Bonus (non-monetary):** a merged PR that fixes the reported issue gets credit in the repo and
-  priority review — this is the primary draw for a small self-funded pool, and it should be said so
-  plainly.
-
-### 4.3 In scope
-
-- All 6 programs at the pinned audited commit: `perp_engine`, `perp_vault`, `a2a_darkpool`,
-  `trading_vault`, `order_settlement`, `collateral_manager`.
-- On-chain program logic only: fund safety, accounting/conservation, authorization scoping, PDA
-  derivation, CPI wiring, replay, oracle/liveness coupling.
-
-### 4.4 Out of scope / exclusions (standard)
-
-1. **Any finding already documented in the 2026-07-21 audit reports** (the 25 confirmed findings
-   above and every Informational/rejected note) — acknowledged, not eligible.
-2. **Attacks that assume a compromised or malicious owner / operator / keeper / admin key**, unless
-   the report shows the privilege was obtained *without* such a key. *(If Juan picks posture (A),
-   narrow this to "compromised **owner/admin** key" and keep operator-compromise **in** scope — the
-   two exclusions are mutually exclusive; pick one to match section 3.)*
-3. Denial of service via network/RPC spam, transaction flooding, or validator-level resource
-   exhaustion not specific to program logic.
-4. Findings requiring a **hard fork of the Solana runtime**, a compromised SPL Token / System /
-   sysvar program, or a broken ed25519/secp256k1 precompile.
-5. Off-chain components: the off-chain matcher/keeper bots, front-end, RPC infra, key management,
-   and deployment/multisig operational security (report privately instead).
-6. Best-practice / style / gas(compute)-optimization notes with **no** security impact.
-7. Theoretical issues with **no** concrete, reproducible failure scenario or PoC against the pinned
-   commit on devnet/local.
-8. Third-party dependency CVEs without a demonstrated exploit path in SUR's usage.
-9. Economic / market-manipulation / oracle-price-assumption findings that reduce to "the price
-   operator can push a wrong price" (that is the documented oracle trust assumption — see
-   collateral_manager HIGH-1 and the section-3 decision).
-10. Mainnet interaction, social engineering, or physical attacks.
-
-### 4.5 Rules of engagement
-
-- Devnet / local validator only. No mainnet, no attacking other users' funds.
-- One report per root cause; duplicates decided by first verifiable submission.
-- Private disclosure to the maintainer first; public write-up only after a fix ships (coordinated
-  disclosure).
-- Reward is discretionary and requires a **reproducible PoC** (test or transaction sequence)
-  against the pinned commit; a proposed fix / PR is strongly favored and can raise the tier.
-- Severity is assigned by the maintainer using this document's rubric **after** the section-3 trust
-  posture is fixed.
+> **Status: CANCELLED 2026-08-07.** The self-funded bounty was never published and was cancelled
+> by decision of the maintainer. The full draft (tiers, scope, exclusions, rules of engagement)
+> remains in this file's git history if it is ever revived.
 
 ---
 
