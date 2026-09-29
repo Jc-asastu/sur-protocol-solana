@@ -6,7 +6,7 @@
 //   - "Wallet not connected" thrown manually by tx hooks
 //   - SendTransactionError / SimulationError with a `logs` field — we
 //     extract the Anchor error name when present
-//   - AccountNotInitialized / not initialized — devnet pre-Phase-9
+//   - AccountNotInitialized / not initialized — missing account state
 //   - Everything else: best-effort message + original toString as desc
 
 export interface FormattedError {
@@ -44,11 +44,11 @@ export function formatError(err: unknown): FormattedError {
     };
   }
 
-  // Account not initialized — current devnet state for SUR programs.
+  // Account not initialized on the selected network.
   if (/AccountNotInitialized|account.*not.*initialized/i.test(raw)) {
     return {
-      message: "Devnet not initialized yet",
-      description: "Phase 9 will run init from an admin wallet. Write operations will start landing after that.",
+      message: "Account not initialized",
+      description: "A required on-chain account is not initialized. Check the selected network or contact the operator.",
     };
   }
 
